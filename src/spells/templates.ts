@@ -18,9 +18,18 @@ function tpl(name: Element, raw: Vec2[]): PTemplate {
  */
 function zigzag(segments: number, xStretch = 1): Vec2[] {
   const pts: Vec2[] = [];
-  for (let i = 0; i <= segments; i++) {
-    pts.push({ x: (i / segments) * xStretch, y: i % 2 === 0 ? 1 : 0 });
+  const pointsPerSegment = 8;
+  for (let i = 0; i < segments; i++) {
+    const x1 = (i / segments) * xStretch;
+    const y1 = i % 2 === 0 ? 1 : 0;
+    const x2 = ((i + 1) / segments) * xStretch;
+    const y2 = (i + 1) % 2 === 0 ? 1 : 0;
+    for (let j = 0; j < pointsPerSegment; j++) {
+      const t = j / pointsPerSegment;
+      pts.push({ x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) });
+    }
   }
+  pts.push({ x: xStretch, y: segments % 2 === 0 ? 1 : 0 });
   return pts;
 }
 
@@ -38,59 +47,51 @@ function sineWave(periods: number, xStretch = 1): Vec2[] {
   return pts;
 }
 
-/** Closed equilateral triangle. */
-function triangle(): Vec2[] {
-  return [
-    { x: 0.5, y: 0 },
-    { x: 1, y: 0.87 },
-    { x: 0, y: 0.87 },
-    { x: 0.5, y: 0 },
-  ];
-}
-
-/**
- * Lightning bolt: top-right → middle-left → middle-right (the "kink") →
- * bottom-left. The step-back in the middle is what distinguishes it from a
- * plain diagonal and from all other sigil shapes.
- */
-function lightningBolt(xStretch = 1): Vec2[] {
-  return [
-    { x: 0.7 * xStretch, y: 0.0 },
-    { x: 0.2 * xStretch, y: 0.5 },
-    { x: 0.55 * xStretch, y: 0.5 },
-    { x: 0.05 * xStretch, y: 1.0 },
-  ];
-}
-
-/** Archimedean spiral, r = k·θ. */
-function spiral(turns: number): Vec2[] {
+/** L shape. */
+function lShape(): Vec2[] {
   const pts: Vec2[] = [];
-  const n = 64;
-  const maxTheta = Math.PI * 2 * turns;
+  for (let i = 0; i <= 10; i++) pts.push({ x: 0, y: i / 10 });
+  for (let i = 1; i <= 10; i++) pts.push({ x: i / 10, y: 1 });
+  return pts;
+}
+
+/** 3-segment Z shape. */
+function zShape(xStretch = 1): Vec2[] {
+  return [
+    { x: 0, y: 0 },
+    { x: 1 * xStretch, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1 * xStretch, y: 1 },
+  ];
+}
+
+/** Unit circle. */
+function circle(): Vec2[] {
+  const pts: Vec2[] = [];
+  const n = 48;
   for (let i = 0; i <= n; i++) {
-    const theta = (i / n) * maxTheta;
-    const r = theta / maxTheta;
-    pts.push({ x: r * Math.cos(theta), y: r * Math.sin(theta) });
+    const t = (i / n) * Math.PI * 2;
+    pts.push({ x: Math.cos(t), y: Math.sin(t) });
   }
   return pts;
 }
 
 export const SIGIL_TEMPLATES: PTemplate[] = [
-  tpl('fire', zigzag(4, 1)),
-  tpl('fire', zigzag(4, 1.6)),
-  tpl('water', sineWave(2.5, 1.8)),
-  tpl('water', sineWave(2.5, 2.8)),
-  tpl('earth', triangle()),
-  tpl('wind', spiral(2.25)),
-  tpl('lightning', lightningBolt(1)),
-  tpl('lightning', lightningBolt(1.5)),
+  tpl('fire', zigzag(2, 1)),
+  tpl('fire', zigzag(2, 1.4)),
+  tpl('water', sineWave(1, 1)),
+  tpl('water', sineWave(1, 1.8)),
+  tpl('earth', lShape()),
+  tpl('wind', circle()),
+  tpl('lightning', zShape(1)),
+  tpl('lightning', zShape(1.4)),
 ];
 
 /** Reference shapes for UI (sigil unlock moment, tutorials). */
 export const SIGIL_DISPLAY: Record<Element, Vec2[]> = {
-  fire: zigzag(4),
-  water: sineWave(2.5),
-  earth: triangle(),
-  wind: spiral(2.25),
-  lightning: lightningBolt(1),
+  fire: zigzag(2),
+  water: sineWave(1),
+  earth: lShape(),
+  wind: circle(),
+  lightning: zShape(1),
 };

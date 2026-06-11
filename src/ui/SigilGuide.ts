@@ -96,32 +96,20 @@ export class SigilGuide {
     const gfx = this.scene.add.graphics();
     panel.add(gfx);
 
-    // Step 1 — the seal
     panel.add(
       this.scene.add
-        .text(cx, 104, '1.  open the seal — draw a steady circle', {
-          fontSize: '20px',
-          color: '#ffd766',
-        })
-        .setOrigin(0.5),
-    );
-    gfx.lineStyle(3, 0xffd766, 0.9);
-    gfx.strokeCircle(cx, 182, 46);
-
-    // Step 2 — sigil cards
-    panel.add(
-      this.scene.add
-        .text(cx, 264, '2.  draw a sigil inside the seal', {
-          fontSize: '20px',
+        .text(cx, 120, 'draw a sigil to cast its spell', {
+          fontSize: '24px',
           color: '#7df0ff',
         })
         .setOrigin(0.5),
     );
+
     const cardW = 170;
     const startX = cx - ((ALL_ELEMENTS.length - 1) * cardW) / 2;
     ALL_ELEMENTS.forEach((element, i) => {
       const x = startX + i * cardW;
-      const y = 350;
+      const y = 260;
       const unlocked = this.casting.unlocked.has(element);
 
       gfx.lineStyle(2, unlocked ? 0xffffff : 0x555566, unlocked ? 0.35 : 0.3);
@@ -154,40 +142,25 @@ export class SigilGuide {
       }
     });
 
-    // Step 3 — modifiers
     panel.add(
       this.scene.add
-        .text(cx, 466, '3.  embellish (optional)', { fontSize: '20px', color: '#9dff8a' })
+        .text(cx, 440, 'aiming', { fontSize: '20px', color: '#ffd766' })
         .setOrigin(0.5),
     );
 
-    // dots
-    gfx.fillStyle(0xffffff, 0.95);
-    gfx.fillCircle(cx - 232, 524, 4);
-    gfx.fillCircle(cx - 216, 516, 4);
-    gfx.fillCircle(cx - 200, 524, 4);
     panel.add(
       this.scene.add
-        .text(cx - 130, 524, 'dots inside — more bolts', { fontSize: '16px', color: '#c8c8d8' })
-        .setOrigin(0, 0.5),
-    );
-
-    // tail
-    gfx.lineStyle(3, 0x9dff8a, 0.9);
-    gfx.strokeCircle(cx + 120, 524, 18);
-    gfx.lineBetween(cx + 136, 516, cx + 196, 496);
-    panel.add(
-      this.scene.add
-        .text(cx + 210, 510, 'a stroke out of the seal —\nlonger reach, aims the spell', {
-          fontSize: '16px',
+        .text(cx, 480, 'fire & earth: flick or tap after drawing to aim/place\nwater, wind & lightning: fire immediately', {
+          fontSize: '17px',
           color: '#c8c8d8',
+          align: 'center'
         })
-        .setOrigin(0, 0.5),
+        .setOrigin(0.5),
     );
 
     panel.add(
       this.scene.add
-        .text(cx, GAME_HEIGHT - 64, 'a shaky seal corrupts the spell.  tap anywhere to begin', {
+        .text(cx, GAME_HEIGHT - 64, 'tap anywhere to begin', {
           fontSize: '17px',
           color: '#8a8a9a',
         })

@@ -35,11 +35,13 @@ export class PDollarRecognizer {
       if (!unlocked.has(tpl.name)) continue;
       const d = greedyCloudMatch(candidate, tpl.points);
       const score = Math.max(0, (2 - d) / 2); // standard $P score mapping
+      
       byElement.set(tpl.name, Math.max(byElement.get(tpl.name) ?? 0, score));
     }
     const all = [...byElement.entries()]
       .map(([name, score]) => ({ name, score }))
       .sort((a, b) => b.score - a.score);
+    
     const best = all[0] ?? null;
     return { name: best?.name ?? null, score: best?.score ?? 0, all };
   }
@@ -72,10 +74,10 @@ function cloudDistance(a: Vec2[], b: Vec2[], start: number): number {
         bestJ = j;
       }
     }
+    if (bestJ === -1) break;
     matched[bestJ] = true;
-    const weight = 1 - ((i - start + n) % n) / n;
-    sum += weight * bestDist;
+    sum += bestDist;
     i = (i + 1) % n;
   } while (i !== start);
-  return sum;
+  return sum / n;
 }
