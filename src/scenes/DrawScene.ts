@@ -240,7 +240,6 @@ export class DrawScene extends Phaser.Scene {
     this.activeGfx = this.add.graphics();
     this.activeGfx.lineStyle(4, INK_COLORS.pending, 0.95);
     this.inkLayer.add(this.activeGfx);
-    this.casting.strokeBegan();
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {

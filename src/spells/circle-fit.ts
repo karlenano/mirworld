@@ -85,7 +85,26 @@ export function fitCircle(points: Vec2[]): CircleFit {
     (coverageDeg - D.sealCoverageMinDeg) / (D.sealCoverageFullDeg - D.sealCoverageMinDeg),
   );
 
+  // q4: smoothness — sharp corners zero out quality. A circle changes direction
+  // by ~5° per resampled step; a triangle corner is 120°, a rectangle is 90°.
+  // Taking the max turning angle between consecutive segments catches polygons
+  // without penalising the gentle wobble of a hand-drawn circle.
+  let maxTurn = 0;
+  for (let i = 1; i < n - 1; i++) {
+    const dx1 = points[i].x - points[i - 1].x;
+    const dy1 = points[i].y - points[i - 1].y;
+    const dx2 = points[i + 1].x - points[i].x;
+    const dy2 = points[i + 1].y - points[i].y;
+    const len1 = Math.hypot(dx1, dy1);
+    const len2 = Math.hypot(dx2, dy2);
+    if (len1 < 1e-9 || len2 < 1e-9) continue;
+    const cosA = (dx1 * dx2 + dy1 * dy2) / (len1 * len2);
+    maxTurn = Math.max(maxTurn, Math.acos(Math.max(-1, Math.min(1, cosA))));
+  }
+  const cornerCutoff = (D.sealCornerCutoffDeg * Math.PI) / 180;
+  const q4 = clamp01(1 - maxTurn / cornerCutoff);
+
   // Closure and coverage both measure "did you complete the loop" — taking the
   // better of the two forgives circles that stop short or overshoot the start.
-  return { cx, cy, r, quality: q1 * Math.max(q2, q3) };
+  return { cx, cy, r, quality: q1 * Math.max(q2, q3) * q4 };
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BALANCE } from '../config/balance';
+
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
 import type { CastingController } from '../spells/casting';
 
@@ -25,11 +25,9 @@ export class DrawButton {
       .text(x, y, '✦', { fontSize: '42px', color: '#ffd766' })
       .setOrigin(0.5);
 
-    let downAt = 0;
     circle.on(
       'pointerdown',
       (_p: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
-        downAt = performance.now();
         event.stopPropagation(); // don't let the tap become an ink stroke
       },
     );
@@ -37,10 +35,10 @@ export class DrawButton {
       'pointerup',
       (_p: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
         event.stopPropagation();
-        if (performance.now() - downAt >= BALANCE.drawing.cancelLongPressMs) {
-          casting.cancel();
+        if (casting.state === 'idle') {
+          casting.toggle(); // enter draw mode
         } else {
-          casting.toggle();
+          casting.cancel(); // cancel in-progress cast
         }
       },
     );

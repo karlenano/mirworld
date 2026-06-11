@@ -14,6 +14,7 @@ export const BALANCE = {
     sealClosureTolerance: 1.2, // start/end gap up to 1.2 × r still scores
     sealCoverageMinDeg: 180, // sweep this much of the circle to score at all
     sealCoverageFullDeg: 290, // full credit at this sweep (no need to overlap)
+    sealCornerCutoffDeg: 60, // max turning angle before quality → 0 (triangle corners are 120°)
     stabilityFloor: 0.55, // even the shakiest accepted seal casts >half the time
     sigilMinScore: 0.25,
     resolveAfterIdleMs: 1200, // commit after this long with no new stroke

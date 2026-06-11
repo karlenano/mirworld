@@ -28,20 +28,13 @@ export class CastingController extends Phaser.Events.EventEmitter {
   readonly unlocked = new Set<Element>(['fire', 'water', 'earth', 'wind', 'lightning']);
 
   private recognizer = new PDollarRecognizer(SIGIL_TEMPLATES);
-  private drawStart = 0;
-  private lastStrokeEnd = 0;
-  private strokeActive = false;
   private aimStart = 0;
 
   toggle(): void {
-    if (this.state === 'idle') {
-      this.reset();
-      this.state = 'drawing';
-      this.drawStart = performance.now();
-      this.emit('state', this.state);
-    } else if (this.state === 'drawing') {
-      this.resolve();
-    }
+    if (this.state !== 'idle') return;
+    this.reset();
+    this.state = 'drawing';
+    this.emit('state', this.state);
   }
 
   cancel(): void {
@@ -52,24 +45,40 @@ export class CastingController extends Phaser.Events.EventEmitter {
     this.emit('state', this.state);
   }
 
-  strokeBegan(): void {
-    this.strokeActive = true;
-  }
-
   strokeEnded(stroke: Stroke): void {
-    this.strokeActive = false;
-    this.lastStrokeEnd = performance.now();
     if (this.state !== 'drawing') return;
 
     const hasSigil = this.glyphs.some((g) => g.classified.kind === 'sigil-stroke');
     const classified = classifyStroke(stroke, this.seal, hasSigil);
 
-    if (!this.seal && classified.kind !== 'seal') {
-      this.emit('badStroke', stroke);
+    if (classified.kind === 'seal') {
+      // Circle drawn = activation. Set the seal, then re-classify any strokes
+      // that were accumulated before we knew the seal's center.
+      this.seal = classified.fit;
+      for (const g of this.glyphs) {
+        const reclassified = classifyStroke(g.stroke, this.seal, false);
+        if (reclassified.kind !== g.classified.kind) {
+          g.classified = reclassified;
+          this.emit('glyph', g);
+        }
+      }
+      const sealGlyph: Glyph = { stroke, classified };
+      this.glyphs.push(sealGlyph);
+      this.emit('glyph', sealGlyph);
+      this.resolve();
       return;
     }
-    if (classified.kind === 'seal') this.seal = classified.fit;
 
+    if (!this.seal) {
+      // No seal yet — accept every stroke as a sigil candidate.
+      const glyph: Glyph = { stroke, classified: { kind: 'sigil-stroke' } };
+      this.glyphs.push(glyph);
+      this.emit('glyph', glyph);
+      return;
+    }
+
+    // Seal set but not a circle stroke (shouldn't arrive in normal flow since
+    // resolve fires when the seal is drawn, but handle defensively).
     const glyph: Glyph = { stroke, classified };
     this.glyphs.push(glyph);
     this.emit('glyph', glyph);
@@ -101,22 +110,8 @@ export class CastingController extends Phaser.Events.EventEmitter {
   update(now: number): void {
     if (this.state === 'directing') {
       if (now - this.aimStart > BALANCE.drawing.aimWindowMs) this.aim();
-      return;
     }
-    if (this.state !== 'drawing' || this.strokeActive) return;
-    const D = BALANCE.drawing;
-
-    if (now - this.drawStart > D.hardCapMs) {
-      this.resolve();
-      return;
-    }
-    if (this.glyphs.length === 0) {
-      if (now - this.drawStart > D.emptyCancelMs) this.cancel();
-      return;
-    }
-    const readyToResolve =
-      this.seal !== null && this.glyphs.length >= 2 && now - this.lastStrokeEnd > D.resolveAfterIdleMs;
-    if (readyToResolve) this.resolve();
+    // Drawing: no timeouts — the circle is the only trigger for resolution.
   }
 
   private resolve(): void {
@@ -171,6 +166,5 @@ export class CastingController extends Phaser.Events.EventEmitter {
   private reset(): void {
     this.seal = null;
     this.glyphs = [];
-    this.strokeActive = false;
   }
 }
