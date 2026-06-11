@@ -49,4 +49,4 @@ export interface SpellSpec {
 
 export type MisfireReason = 'no-seal' | 'no-sigil' | 'unknown-sigil';
 
-export type CastState = 'idle' | 'drawing' | 'resolving';
+export type CastState = 'idle' | 'drawing' | 'resolving' | 'directing';

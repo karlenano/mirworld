@@ -61,7 +61,8 @@ export class GameScene extends Phaser.Scene {
     this.executor = new SpellExecutor(this.projectiles, this.enemies, this.blocks, this.player);
 
     this.casting.on('state', (state: string) => {
-      this.applyTimeScale(state === 'drawing' ? BALANCE.drawing.timeScale : 1);
+      const slow = state === 'drawing' || state === 'directing';
+      this.applyTimeScale(slow ? BALANCE.drawing.timeScale : 1);
     });
     this.casting.on('cast', (spec: SpellSpec) => this.executor.execute(spec));
     this.casting.on('misfire', () => this.onMisfire());

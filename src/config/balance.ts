@@ -29,6 +29,7 @@ export const BALANCE = {
     extraDotPowerMult: 0.85, // per-projectile power falloff per extra dot
     unknownStrokeStabilityPenalty: 0.1,
     interruptDamageFraction: 0.15, // damage > this × maxHP cancels a cast
+    aimWindowMs: 1400,             // real-time window to flick-aim after a spell resolves
   },
 
   spells: {
