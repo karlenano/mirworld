@@ -16,14 +16,12 @@ export class Block extends Phaser.Physics.Arcade.Image {
     this.setPosition(x, y);
     this.setActive(true).setVisible(true).setAlpha(1);
 
+    const body = this.body as Phaser.Physics.Arcade.StaticBody;
+    body.enable = true;
     // refreshBody() resets the StaticBody position to match the sprite —
     // required whenever you reposition a static physics object.
     this.refreshBody();
-    (this.body as Phaser.Physics.Arcade.StaticBody).setCircle(
-      r,
-      this.width / 2 - r,
-      this.height / 2 - r,
-    );
+    body.setCircle(r, this.width / 2 - r, this.height / 2 - r);
 
     this.scene.time.delayedCall(BALANCE.spells.earthBlock.lifetimeMs - 800, () => {
       if (!this.active) return;

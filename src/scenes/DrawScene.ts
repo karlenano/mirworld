@@ -15,10 +15,10 @@ const INK_COLORS: Record<string, number> = {
 };
 
 /**
- * Screen-space overlay scene: captures finger strokes while the
- * CastingController is in draw mode, renders the ink, and shows the
- * flick-to-aim UI during the 'directing' phase.
- * Runs in parallel above GameScene, below HudScene.
+ * Screen-space overlay scene: captures finger strokes while drawing, renders
+ * ink, and shows element-appropriate targeting UI during the 'directing' phase:
+ *   fire  → flick-to-aim arrow
+ *   earth → tap-to-place crosshair with range ring
  */
 export class DrawScene extends Phaser.Scene {
   private casting!: CastingController;
@@ -30,15 +30,21 @@ export class DrawScene extends Phaser.Scene {
   private activePointerId = -1;
   private nextStrokeId = 1;
 
-  // Draw region: the right 65% of the screen (left third belongs to the joystick).
   private regionLeft = GAME_WIDTH * 0.35;
 
-  // Directing phase UI
+  // Shared directing state
+  private directingPointer = -1;
+
+  // Fire aim UI
   private aimGfx: Phaser.GameObjects.Graphics | null = null;
   private aimOrigin: Phaser.GameObjects.Arc | null = null;
   private aimHint: Phaser.GameObjects.Text | null = null;
-  private aimPointer = -1;
   private aimDragStart: { x: number; y: number } | null = null;
+
+  // Earth placement UI
+  private earthRangeGfx: Phaser.GameObjects.Graphics | null = null;
+  private earthCrosshairGfx: Phaser.GameObjects.Graphics | null = null;
+  private earthHint: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super(SCENES.DRAW);
@@ -76,20 +82,43 @@ export class DrawScene extends Phaser.Scene {
     this.casting.update(performance.now());
   }
 
-  // ─── Directing phase ────────────────────────────────────────────────────────
+  // ─── Directing: entry / exit ─────────────────────────────────────────────
 
   private enterDirecting(): void {
+    this.directingPointer = -1;
+    if (this.casting.pendingSpec?.element === 'earth') {
+      this.enterEarthPlacement();
+    } else {
+      this.enterFireAim();
+    }
+  }
+
+  private exitDirecting(): void {
+    // Fire
+    this.aimOrigin?.destroy();  this.aimOrigin = null;
+    this.aimGfx?.destroy();     this.aimGfx = null;
+    this.aimHint?.destroy();    this.aimHint = null;
+    this.aimDragStart = null;
+    // Earth
+    this.earthRangeGfx?.destroy();     this.earthRangeGfx = null;
+    this.earthCrosshairGfx?.destroy(); this.earthCrosshairGfx = null;
+    this.earthHint?.destroy();         this.earthHint = null;
+
+    this.directingPointer = -1;
+  }
+
+  // ─── Fire: flick-to-aim ──────────────────────────────────────────────────
+
+  private enterFireAim(): void {
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
 
-    // Pulsing ring that shrinks away over the aim window — doubles as a countdown.
     this.aimOrigin = this.add.circle(cx, cy, 30, 0xffffff, 0.0)
       .setStrokeStyle(2, 0xffffff, 0.55)
       .setDepth(20) as Phaser.GameObjects.Arc;
     this.tweens.add({
       targets: this.aimOrigin,
-      scaleX: 2.2,
-      scaleY: 2.2,
+      scaleX: 2.2, scaleY: 2.2,
       alpha: 0,
       duration: BALANCE.drawing.aimWindowMs,
       ease: 'Sine.easeIn',
@@ -97,70 +126,111 @@ export class DrawScene extends Phaser.Scene {
 
     this.aimHint = this.add
       .text(cx, cy - 62, 'FLICK TO AIM', {
-        fontSize: '13px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 3,
+        fontSize: '13px', color: '#ffffff',
+        stroke: '#000000', strokeThickness: 3,
       })
-      .setOrigin(0.5)
-      .setDepth(20)
-      .setAlpha(0);
+      .setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets: this.aimHint, alpha: 0.75, duration: 200 });
 
     this.aimGfx = this.add.graphics().setDepth(20);
   }
 
-  private exitDirecting(): void {
-    this.aimOrigin?.destroy();
-    this.aimOrigin = null;
-    this.aimGfx?.destroy();
-    this.aimGfx = null;
-    this.aimHint?.destroy();
-    this.aimHint = null;
-    this.aimPointer = -1;
-    this.aimDragStart = null;
-  }
-
   private drawAimArrow(angle: number): void {
     if (!this.aimGfx) return;
     this.aimGfx.clear();
-
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
-    const shaftStart = 28; // leave room for the origin ring
-    const shaftEnd = 80;
-    const sx = cx + Math.cos(angle) * shaftStart;
-    const sy = cy + Math.sin(angle) * shaftStart;
-    const ex = cx + Math.cos(angle) * shaftEnd;
-    const ey = cy + Math.sin(angle) * shaftEnd;
+    const start = 28;
+    const end = 80;
+    const sx = cx + Math.cos(angle) * start;
+    const sy = cy + Math.sin(angle) * start;
+    const ex = cx + Math.cos(angle) * end;
+    const ey = cy + Math.sin(angle) * end;
 
     this.aimGfx.lineStyle(3, 0xffffff, 0.9);
     this.aimGfx.lineBetween(sx, sy, ex, ey);
 
-    // Arrowhead
     const hLen = 14;
     const hSpread = 0.45;
-    this.aimGfx.lineBetween(
-      ex, ey,
+    this.aimGfx.lineBetween(ex, ey,
       ex - Math.cos(angle - hSpread) * hLen,
-      ey - Math.sin(angle - hSpread) * hLen,
-    );
-    this.aimGfx.lineBetween(
-      ex, ey,
+      ey - Math.sin(angle - hSpread) * hLen);
+    this.aimGfx.lineBetween(ex, ey,
       ex - Math.cos(angle + hSpread) * hLen,
-      ey - Math.sin(angle + hSpread) * hLen,
-    );
+      ey - Math.sin(angle + hSpread) * hLen);
   }
 
-  // ─── Input ──────────────────────────────────────────────────────────────────
+  // ─── Earth: tap-to-place ─────────────────────────────────────────────────
+
+  private enterEarthPlacement(): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const rangeMult = this.casting.pendingSpec?.rangeMult ?? 1;
+    const maxR = BALANCE.spells.earthBlock.placeDist * rangeMult;
+
+    // Range ring
+    this.earthRangeGfx = this.add.graphics().setDepth(20);
+    this.earthRangeGfx.fillStyle(0x88aa44, 0.07);
+    this.earthRangeGfx.fillCircle(cx, cy, maxR);
+    this.earthRangeGfx.lineStyle(1, 0xaabb66, 0.4);
+    this.earthRangeGfx.strokeCircle(cx, cy, maxR);
+
+    // Crosshair starts at center (default = place right in front)
+    this.earthCrosshairGfx = this.add.graphics().setDepth(21);
+    this.drawEarthCrosshair(cx, cy);
+
+    this.earthHint = this.add
+      .text(cx, cy - maxR - 18, 'TAP TO PLACE', {
+        fontSize: '13px', color: '#aabb88',
+        stroke: '#000000', strokeThickness: 3,
+      })
+      .setOrigin(0.5).setDepth(20).setAlpha(0);
+    this.tweens.add({ targets: this.earthHint, alpha: 0.75, duration: 200 });
+  }
+
+  private drawEarthCrosshair(sx: number, sy: number): void {
+    if (!this.earthCrosshairGfx) return;
+    this.earthCrosshairGfx.clear();
+    const r = 10;
+    const arm = 16;
+    this.earthCrosshairGfx.lineStyle(2, 0xccee88, 0.92);
+    this.earthCrosshairGfx.strokeCircle(sx, sy, r);
+    this.earthCrosshairGfx.lineBetween(sx - arm, sy, sx - r - 2, sy);
+    this.earthCrosshairGfx.lineBetween(sx + r + 2, sy, sx + arm, sy);
+    this.earthCrosshairGfx.lineBetween(sx, sy - arm, sx, sy - r - 2);
+    this.earthCrosshairGfx.lineBetween(sx, sy + r + 2, sx, sy + arm);
+  }
+
+  /** Clamp a screen-space offset to the placement range and update casting + visuals. */
+  private updateEarthTarget(px: number, py: number): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const rangeMult = this.casting.pendingSpec?.rangeMult ?? 1;
+    const maxR = BALANCE.spells.earthBlock.placeDist * rangeMult;
+
+    let dx = px - cx;
+    let dy = py - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
+
+    this.casting.setAimTarget(dx, dy);
+    this.drawEarthCrosshair(cx + dx, cy + dy);
+  }
+
+  // ─── Input ───────────────────────────────────────────────────────────────
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     if (this.casting.state === 'directing') {
-      if (this.aimPointer !== -1) return; // one finger at a time
-      this.aimPointer = pointer.id;
-      this.aimDragStart = { x: pointer.x, y: pointer.y };
+      if (this.directingPointer !== -1) return;
+      this.directingPointer = pointer.id;
+      if (this.casting.pendingSpec?.element === 'earth') {
+        this.updateEarthTarget(pointer.x, pointer.y);
+      } else {
+        this.aimDragStart = { x: pointer.x, y: pointer.y };
+      }
       return;
     }
+
     if (this.casting.state !== 'drawing') return;
     if (pointer.x < this.regionLeft) return;
     if (this.activePoints) return;
@@ -174,17 +244,21 @@ export class DrawScene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    if (this.casting.state === 'directing') {
-      if (pointer.id !== this.aimPointer || !this.aimDragStart) return;
-      const dx = pointer.x - this.aimDragStart.x;
-      const dy = pointer.y - this.aimDragStart.y;
-      if (Math.hypot(dx, dy) > 12) {
-        const angle = Math.atan2(dy, dx);
-        this.casting.setAimAngle(angle);
-        this.drawAimArrow(angle);
+    if (this.casting.state === 'directing' && pointer.id === this.directingPointer) {
+      if (this.casting.pendingSpec?.element === 'earth') {
+        this.updateEarthTarget(pointer.x, pointer.y);
+      } else if (this.aimDragStart) {
+        const dx = pointer.x - this.aimDragStart.x;
+        const dy = pointer.y - this.aimDragStart.y;
+        if (Math.hypot(dx, dy) > 12) {
+          const angle = Math.atan2(dy, dx);
+          this.casting.setAimAngle(angle);
+          this.drawAimArrow(angle);
+        }
       }
       return;
     }
+
     if (!this.activePoints || pointer.id !== this.activePointerId) return;
     const pts = this.activePoints;
     const last = pts[pts.length - 1];
@@ -197,13 +271,13 @@ export class DrawScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer): void {
-    if (this.casting.state === 'directing') {
-      if (pointer.id !== this.aimPointer) return;
+    if (this.casting.state === 'directing' && pointer.id === this.directingPointer) {
       this.casting.aim();
-      this.aimPointer = -1;
+      this.directingPointer = -1;
       this.aimDragStart = null;
       return;
     }
+
     if (!this.activePoints || pointer.id !== this.activePointerId) return;
 
     const points = this.activePoints;
@@ -220,7 +294,7 @@ export class DrawScene extends Phaser.Scene {
     this.casting.strokeEnded(stroke);
   }
 
-  // ─── Ink rendering ──────────────────────────────────────────────────────────
+  // ─── Ink rendering ───────────────────────────────────────────────────────
 
   private recolorStroke(glyph: Glyph): void {
     const ink = this.strokeInk.get(glyph.stroke.id);

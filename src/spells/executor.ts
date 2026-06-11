@@ -87,26 +87,44 @@ export class SpellExecutor {
 
   /**
    * Earth — places a static rock barrier at the targeted spot.
-   * Tail sets placement direction + distance; dots add extra rocks (fanned out).
+   * Tap-to-place sets targetX/Y; dots fan extra rocks around that direction.
    */
   private executeEarth(spec: SpellSpec): void {
     const E = BALANCE.spells.earthBlock;
     if (spec.corrupted) {
-      // Corrupted: rock appears under the player
       const block = this.blocks.get(this.player.x, this.player.y) as Block | null;
       block?.place(this.player.x, this.player.y);
       return;
     }
 
-    const angle = spec.direction ?? this.player.facing;
-    const dist = E.placeDist * spec.rangeMult;
-    const spread = Phaser.Math.DegToRad(28);
+    // Resolve base position: tapped target or fallback to angle+placeDist.
+    let baseBx: number;
+    let baseBy: number;
+    if (spec.targetX !== undefined && spec.targetY !== undefined) {
+      baseBx = this.player.x + spec.targetX;
+      baseBy = this.player.y + spec.targetY;
+    } else {
+      const angle = spec.direction ?? this.player.facing;
+      const dist = E.placeDist * spec.rangeMult;
+      baseBx = this.player.x + Math.cos(angle) * dist;
+      baseBy = this.player.y + Math.sin(angle) * dist;
+    }
 
+    if (spec.count === 1) {
+      const block = this.blocks.get(baseBx, baseBy) as Block | null;
+      block?.place(baseBx, baseBy);
+      return;
+    }
+
+    // Multiple rocks: fan around the direction from player to target.
+    const baseAngle = Math.atan2(baseBy - this.player.y, baseBx - this.player.x);
+    const baseDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, baseBx, baseBy);
+    const spread = Phaser.Math.DegToRad(28);
     for (let i = 0; i < spec.count; i++) {
       const offset = (i - (spec.count - 1) / 2) * spread;
-      const a = angle + offset;
-      const bx = this.player.x + Math.cos(a) * dist;
-      const by = this.player.y + Math.sin(a) * dist;
+      const a = baseAngle + offset;
+      const bx = this.player.x + Math.cos(a) * baseDist;
+      const by = this.player.y + Math.sin(a) * baseDist;
       const block = this.blocks.get(bx, by) as Block | null;
       block?.place(bx, by);
     }

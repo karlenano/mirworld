@@ -75,10 +75,17 @@ export class CastingController extends Phaser.Events.EventEmitter {
     this.emit('glyph', glyph);
   }
 
-  /** Update the aimed direction while the player is dragging. */
+  /** Update the aimed direction while the player is dragging (fire). */
   setAimAngle(angle: number): void {
     if (this.state !== 'directing' || !this.pendingSpec || this.pendingSpec.corrupted) return;
     this.pendingSpec.direction = angle;
+  }
+
+  /** Update the placement target while the player is dragging (earth). */
+  setAimTarget(dx: number, dy: number): void {
+    if (this.state !== 'directing' || !this.pendingSpec) return;
+    this.pendingSpec.targetX = dx;
+    this.pendingSpec.targetY = dy;
   }
 
   /** Commit the aim and fire the spell. Called by DrawScene on pointer-up or after timeout. */

@@ -43,6 +43,8 @@ export interface SpellSpec {
   count: number; // projectile count
   rangeMult: number;
   direction?: number; // radians; undefined = aim at nearest enemy
+  targetX?: number;  // world-space offset from player (earth tap-to-place)
+  targetY?: number;
   aoeMult: number; // reserved; 1 in the vertical slice
   corrupted: boolean; // stability roll failed — backfire
 }
