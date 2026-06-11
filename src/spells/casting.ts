@@ -28,6 +28,7 @@ export class CastingController extends Phaser.Events.EventEmitter {
   readonly unlocked = new Set<Element>(['fire', 'water', 'earth', 'wind', 'lightning']);
 
   private recognizer = new PDollarRecognizer(SIGIL_TEMPLATES);
+  private lastStrokeEnd = 0;
   private aimStart = 0;
 
   toggle(): void {
@@ -46,6 +47,7 @@ export class CastingController extends Phaser.Events.EventEmitter {
   }
 
   strokeEnded(stroke: Stroke): void {
+    this.lastStrokeEnd = performance.now();
     if (this.state !== 'drawing') return;
 
     const hasSigil = this.glyphs.some((g) => g.classified.kind === 'sigil-stroke');
@@ -110,8 +112,11 @@ export class CastingController extends Phaser.Events.EventEmitter {
   update(now: number): void {
     if (this.state === 'directing') {
       if (now - this.aimStart > BALANCE.drawing.aimWindowMs) this.aim();
+      return;
     }
-    // Drawing: no timeouts — the circle is the only trigger for resolution.
+    if (this.state === 'drawing' && this.glyphs.length > 0) {
+      if (now - this.lastStrokeEnd > BALANCE.drawing.idleClearMs) this.cancel();
+    }
   }
 
   private resolve(): void {

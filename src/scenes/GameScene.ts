@@ -66,10 +66,6 @@ export class GameScene extends Phaser.Scene {
     this.registry.set(REGISTRY.CASTING, this.casting);
     this.executor = new SpellExecutor(this.projectiles, this.enemies, this.blocks, this.traps, this.player);
 
-    this.casting.on('state', (state: string) => {
-      const slow = state === 'drawing' || state === 'directing';
-      this.applyTimeScale(slow ? BALANCE.drawing.timeScale : 1);
-    });
     this.casting.on('cast', (spec: SpellSpec) => this.executor.execute(spec));
     this.casting.on('misfire', () => this.onMisfire());
 
@@ -103,7 +99,6 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SCENES.HUD);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.applyTimeScale(1);
       this.casting.removeAllListeners();
     });
   }
@@ -117,13 +112,6 @@ export class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown || this.wasd.W.isDown) dy -= 1;
     if (this.cursors.down.isDown || this.wasd.S.isDown) dy += 1;
     this.player.move(dx, dy);
-  }
-
-  private applyTimeScale(s: number): void {
-    this.physics.world.timeScale = 1 / s; // Arcade: 2 = half speed
-    this.time.timeScale = s;
-    this.tweens.timeScale = s;
-    this.anims.globalTimeScale = s;
   }
 
   private onProjectileHit(proj: Projectile, enemy: Enemy): void {

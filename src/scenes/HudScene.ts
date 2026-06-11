@@ -3,7 +3,6 @@ import { GAME_WIDTH, REGISTRY, SCENES } from '../config/game-config';
 import type { CastingController } from '../spells/casting';
 import type { RecognizeResult } from '../spells/recognizer';
 import type { Glyph, MisfireReason, SpellSpec } from '../spells/types';
-import { DrawButton } from '../ui/DrawButton';
 import { SigilGuide } from '../ui/SigilGuide';
 import { VirtualJoystick } from '../ui/VirtualJoystick';
 import type { GameScene } from './GameScene';
@@ -24,7 +23,6 @@ export class HudScene extends Phaser.Scene {
 
     const joystick = new VirtualJoystick(this);
     this.registry.set(REGISTRY.JOYSTICK, joystick);
-    new DrawButton(this, this.casting);
 
     this.hpBar = this.add.graphics();
     this.toast = this.add

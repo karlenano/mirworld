@@ -17,10 +17,7 @@ export const BALANCE = {
     sealCornerCutoffDeg: 60, // max turning angle before quality → 0 (triangle corners are 120°)
     stabilityFloor: 0.55, // even the shakiest accepted seal casts >half the time
     sigilMinScore: 0.25,
-    resolveAfterIdleMs: 1200, // commit after this long with no new stroke
-    hardCapMs: 12000, // max real-time in draw mode
-    emptyCancelMs: 4000, // cancel if nothing drawn
-    cancelLongPressMs: 400,
+    idleClearMs: 5000, // cancel drawing if no new stroke after this long
     dotMaxLengthPx: 20,
     dotMaxBboxPx: 16,
     tailMinStraightness: 0.75,

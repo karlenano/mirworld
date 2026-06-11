@@ -59,7 +59,7 @@ export class DrawScene extends Phaser.Scene {
     this.inkLayer = this.add.container(0, 0);
 
     this.casting.on('state', (state: string) => {
-      this.vignette.setVisible(state === 'drawing' || state === 'directing');
+      this.vignette.setVisible(state === 'directing');
       if (state === 'directing') {
         this.fadeAllInk();
         this.enterDirecting();
@@ -231,9 +231,12 @@ export class DrawScene extends Phaser.Scene {
       return;
     }
 
+    if (pointer.x < this.regionLeft) return; // joystick side — ignore
+    if (this.activePoints) return;            // already mid-stroke
+
+    // Auto-enter draw mode on first touch — no toggle needed.
+    if (this.casting.state === 'idle') this.casting.toggle();
     if (this.casting.state !== 'drawing') return;
-    if (pointer.x < this.regionLeft) return;
-    if (this.activePoints) return;
 
     this.activePointerId = pointer.id;
     this.activePoints = [{ x: pointer.x, y: pointer.y, t: performance.now() }];
