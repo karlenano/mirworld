@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance';
 import { GAME_HEIGHT, GAME_WIDTH, REGISTRY, SCENES } from '../config/game-config';
 import type { CastingController } from '../spells/casting';
 import { bbox, pathLength } from '../spells/geometry';
-import type { Glyph, RawPoint, Stroke } from '../spells/types';
+import type { RawPoint, Stroke } from '../spells/types';
 
 const INK_COLORS: Record<string, number> = {
   pending: 0x9be8ff,
@@ -69,8 +69,6 @@ export class DrawScene extends Phaser.Scene {
         this.exitDirecting();
       }
     });
-    this.casting.on('glyph', (glyph: Glyph) => this.recolorStroke(glyph));
-    this.casting.on('badStroke', (stroke: Stroke) => this.flashBadStroke(stroke.id));
 
     this.input.on('pointerdown', this.onPointerDown, this);
     this.input.on('pointermove', this.onPointerMove, this);
@@ -294,48 +292,6 @@ export class DrawScene extends Phaser.Scene {
     this.activeGfx = null;
     this.activePointerId = -1;
     this.casting.strokeEnded(stroke);
-  }
-
-  // ─── Ink rendering ───────────────────────────────────────────────────────
-
-  private recolorStroke(glyph: Glyph): void {
-    const ink = this.strokeInk.get(glyph.stroke.id);
-    if (!ink) return;
-    const color = INK_COLORS[glyph.classified.kind] ?? INK_COLORS.pending;
-    this.redraw(ink.gfx, ink.points, color);
-
-    if (glyph.classified.kind === 'seal') {
-      const { cx, cy, r } = glyph.classified.fit;
-      ink.gfx.lineStyle(2, 0xffd766, 0.5);
-      ink.gfx.strokeCircle(cx, cy, r);
-    }
-  }
-
-  private flashBadStroke(strokeId: number): void {
-    const ink = this.strokeInk.get(strokeId);
-    if (!ink) return;
-    this.redraw(ink.gfx, ink.points, 0xff5555);
-    this.tweens.add({
-      targets: ink.gfx,
-      alpha: 0,
-      duration: 350,
-      onComplete: () => {
-        ink.gfx.destroy();
-        this.strokeInk.delete(strokeId);
-      },
-    });
-  }
-
-  private redraw(gfx: Phaser.GameObjects.Graphics, points: RawPoint[], color: number): void {
-    gfx.clear();
-    gfx.lineStyle(4, color, 0.95);
-    for (let i = 1; i < points.length; i++) {
-      gfx.lineBetween(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y);
-    }
-    if (points.length === 1) {
-      gfx.fillStyle(color, 0.95);
-      gfx.fillCircle(points[0].x, points[0].y, 4);
-    }
   }
 
   private fadeAllInk(): void {

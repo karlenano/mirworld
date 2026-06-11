@@ -49,6 +49,6 @@ export interface SpellSpec {
   corrupted: boolean; // stability roll failed — backfire
 }
 
-export type MisfireReason = 'no-seal' | 'no-sigil' | 'unknown-sigil';
+export type MisfireReason = 'unknown-sigil';
 
-export type CastState = 'idle' | 'drawing' | 'resolving' | 'directing';
+export type CastState = 'idle' | 'drawing' | 'directing';

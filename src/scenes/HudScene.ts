@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, REGISTRY, SCENES } from '../config/game-config';
 import type { CastingController } from '../spells/casting';
 import type { RecognizeResult } from '../spells/recognizer';
-import type { Glyph, MisfireReason, SpellSpec } from '../spells/types';
+import type { MisfireReason, SpellSpec } from '../spells/types';
 import { SigilGuide } from '../ui/SigilGuide';
 import { VirtualJoystick } from '../ui/VirtualJoystick';
 import type { GameScene } from './GameScene';
@@ -51,16 +51,6 @@ export class HudScene extends Phaser.Scene {
       this.debugText.setVisible(!this.debugText.visible);
     });
 
-    this.casting.on('glyph', (glyph: Glyph) => {
-      const c = glyph.classified;
-      if (c.kind === 'seal') {
-        this.pushDebug(`seal  q=${c.fit.quality.toFixed(2)} r=${Math.round(c.fit.r)}`);
-      } else if (c.kind === 'tail') {
-        this.pushDebug(`tail  len=${c.lengthRatio.toFixed(2)}`);
-      } else {
-        this.pushDebug(c.kind);
-      }
-    });
     this.casting.on('recognition', (r: RecognizeResult) => {
       for (const s of r.all.slice(0, 4)) this.pushDebug(`  ${s.name}: ${s.score.toFixed(2)}`);
     });
@@ -80,8 +70,6 @@ export class HudScene extends Phaser.Scene {
     this.casting.on('misfire', (reason: MisfireReason) => {
       this.pushDebug(`MISFIRE ${reason}`);
       const msg: Record<MisfireReason, string> = {
-        'no-seal': 'the seal never formed...',
-        'no-sigil': 'an empty seal fizzles',
         'unknown-sigil': 'the sigil means nothing',
       };
       this.showToast(msg[reason], '#aaaaaa');

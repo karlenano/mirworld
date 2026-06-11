@@ -1,28 +1,24 @@
 import Phaser from 'phaser';
 import { BALANCE } from '../config/balance';
-import { classifyStroke } from './classifier';
 import { compileSpell } from './compiler';
 import { PDollarRecognizer } from './recognizer';
 import { SIGIL_TEMPLATES } from './templates';
-import type { CastState, CircleFit, Element, Glyph, SpellSpec, Stroke } from './types';
+import type { CastState, Element, SpellSpec, Stroke } from './types';
 
 /**
- * Casting state machine: idle → drawing → resolving → directing → idle.
- * Corrupted spells skip directing and fire immediately in their random direction.
- * All timers run on real time (performance.now()) so game slow-motion never
- * affects drawing, recognition, or the aim window.
+ * Casting: draw a sigil stroke → instant recognition → spell fires.
+ * No seal or circle needed. Each completed stroke is a full cast attempt.
+ *
+ * States: idle → drawing (finger down) → idle or directing (finger up).
  *
  * Events:
- *  - 'state'      (state: CastState)
- *  - 'glyph'      (glyph: Glyph)           a stroke was classified
- *  - 'badStroke'  (stroke: Stroke)          rejected (e.g. first stroke not a circle)
- *  - 'cast'       (spec: SpellSpec)         spell fires (direction already set or undefined = auto-aim)
- *  - 'misfire'    (reason: MisfireReason)   fizzle, nothing cast
+ *  - 'state'       (state: CastState)
+ *  - 'recognition' (result: RecognizeResult)
+ *  - 'cast'        (spec: SpellSpec)
+ *  - 'misfire'     (reason: MisfireReason)
  */
 export class CastingController extends Phaser.Events.EventEmitter {
   state: CastState = 'idle';
-  seal: CircleFit | null = null;
-  glyphs: Glyph[] = [];
   pendingSpec: SpellSpec | null = null;
 
   readonly unlocked = new Set<Element>(['fire', 'water', 'earth', 'wind', 'lightning']);
@@ -31,75 +27,73 @@ export class CastingController extends Phaser.Events.EventEmitter {
   private lastStrokeEnd = 0;
   private aimStart = 0;
 
+  /** Enter draw mode (called automatically by DrawScene on pointer-down). */
   toggle(): void {
     if (this.state !== 'idle') return;
-    this.reset();
     this.state = 'drawing';
+    this.lastStrokeEnd = performance.now();
     this.emit('state', this.state);
   }
 
   cancel(): void {
     if (this.state === 'idle') return;
     this.pendingSpec = null;
-    this.reset();
     this.state = 'idle';
     this.emit('state', this.state);
   }
 
+  /** Called when the player lifts their finger. Recognizes the stroke and fires. */
   strokeEnded(stroke: Stroke): void {
     this.lastStrokeEnd = performance.now();
     if (this.state !== 'drawing') return;
 
-    const hasSigil = this.glyphs.some((g) => g.classified.kind === 'sigil-stroke');
-    const classified = classifyStroke(stroke, this.seal, hasSigil);
+    const recognition = this.recognizer.recognize([stroke], this.unlocked);
+    this.emit('recognition', recognition);
 
-    if (classified.kind === 'seal') {
-      // Circle drawn = activation. Set the seal, then re-classify any strokes
-      // that were accumulated before we knew the seal's center.
-      this.seal = classified.fit;
-      for (const g of this.glyphs) {
-        const reclassified = classifyStroke(g.stroke, this.seal, false);
-        if (reclassified.kind !== g.classified.kind) {
-          g.classified = reclassified;
-          this.emit('glyph', g);
-        }
-      }
-      const sealGlyph: Glyph = { stroke, classified };
-      this.glyphs.push(sealGlyph);
-      this.emit('glyph', sealGlyph);
-      this.resolve();
+    const result = compileSpell(recognition);
+
+    if (!result.ok) {
+      this.state = 'idle';
+      this.emit('state', this.state);
+      this.emit('misfire', result.reason);
       return;
     }
 
-    if (!this.seal) {
-      // No seal yet — accept every stroke as a sigil candidate.
-      const glyph: Glyph = { stroke, classified: { kind: 'sigil-stroke' } };
-      this.glyphs.push(glyph);
-      this.emit('glyph', glyph);
+    if (Math.random() > result.spec.stability) {
+      result.spec.corrupted = true;
+      result.spec.power *= BALANCE.spells.corruptedPowerMult;
+      result.spec.direction = Math.random() * Math.PI * 2;
+      this.state = 'idle';
+      this.emit('state', this.state);
+      this.emit('cast', result.spec);
       return;
     }
 
-    // Seal set but not a circle stroke (shouldn't arrive in normal flow since
-    // resolve fires when the seal is drawn, but handle defensively).
-    const glyph: Glyph = { stroke, classified };
-    this.glyphs.push(glyph);
-    this.emit('glyph', glyph);
+    if (result.spec.element === 'wind' || result.spec.element === 'water' || result.spec.element === 'lightning') {
+      this.state = 'idle';
+      this.emit('state', this.state);
+      this.emit('cast', result.spec);
+      return;
+    }
+
+    // Fire and earth enter directing phase for aim/placement.
+    this.pendingSpec = result.spec;
+    this.state = 'directing';
+    this.aimStart = performance.now();
+    this.emit('state', this.state);
   }
 
-  /** Update the aimed direction while the player is dragging (fire). */
   setAimAngle(angle: number): void {
     if (this.state !== 'directing' || !this.pendingSpec || this.pendingSpec.corrupted) return;
     this.pendingSpec.direction = angle;
   }
 
-  /** Update the placement target while the player is dragging (earth). */
   setAimTarget(dx: number, dy: number): void {
     if (this.state !== 'directing' || !this.pendingSpec) return;
     this.pendingSpec.targetX = dx;
     this.pendingSpec.targetY = dy;
   }
 
-  /** Commit the aim and fire the spell. Called by DrawScene on pointer-up or after timeout. */
   aim(): void {
     if (this.state !== 'directing' || !this.pendingSpec) return;
     const spec = this.pendingSpec;
@@ -114,62 +108,9 @@ export class CastingController extends Phaser.Events.EventEmitter {
       if (now - this.aimStart > BALANCE.drawing.aimWindowMs) this.aim();
       return;
     }
-    if (this.state === 'drawing' && this.glyphs.length > 0) {
-      if (now - this.lastStrokeEnd > BALANCE.drawing.idleClearMs) this.cancel();
+    // Safety valve: clear stuck drawing state after prolonged inactivity.
+    if (this.state === 'drawing' && now - this.lastStrokeEnd > BALANCE.drawing.idleClearMs) {
+      this.cancel();
     }
-  }
-
-  private resolve(): void {
-    this.state = 'resolving';
-    this.emit('state', this.state);
-
-    const sigilStrokes = this.glyphs
-      .filter((g) => g.classified.kind === 'sigil-stroke')
-      .map((g) => g.stroke);
-    const recognition = this.recognizer.recognize(sigilStrokes, this.unlocked);
-    this.emit('recognition', recognition);
-
-    const result = compileSpell(this.glyphs, recognition);
-
-    if (!result.ok) {
-      this.reset();
-      this.state = 'idle';
-      this.emit('state', this.state);
-      this.emit('misfire', result.reason);
-      return;
-    }
-
-    // Stability roll: corrupted spells skip aiming and fire instantly in a random direction.
-    if (Math.random() > result.spec.stability) {
-      result.spec.corrupted = true;
-      result.spec.power *= BALANCE.spells.corruptedPowerMult;
-      result.spec.direction = Math.random() * Math.PI * 2;
-      this.reset();
-      this.state = 'idle';
-      this.emit('state', this.state);
-      this.emit('cast', result.spec);
-      return;
-    }
-
-    // Wind/water/lightning all resolve immediately with no aiming phase.
-    if (result.spec.element === 'wind' || result.spec.element === 'water' || result.spec.element === 'lightning') {
-      this.reset();
-      this.state = 'idle';
-      this.emit('state', this.state);
-      this.emit('cast', result.spec);
-      return;
-    }
-
-    // Enter directing phase — player has aimWindowMs to flick-aim.
-    this.reset();
-    this.pendingSpec = result.spec;
-    this.state = 'directing';
-    this.aimStart = performance.now();
-    this.emit('state', this.state);
-  }
-
-  private reset(): void {
-    this.seal = null;
-    this.glyphs = [];
   }
 }
