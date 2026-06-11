@@ -48,6 +48,20 @@ function triangle(): Vec2[] {
   ];
 }
 
+/**
+ * Lightning bolt: top-right → middle-left → middle-right (the "kink") →
+ * bottom-left. The step-back in the middle is what distinguishes it from a
+ * plain diagonal and from all other sigil shapes.
+ */
+function lightningBolt(xStretch = 1): Vec2[] {
+  return [
+    { x: 0.7 * xStretch, y: 0.0 },
+    { x: 0.2 * xStretch, y: 0.5 },
+    { x: 0.55 * xStretch, y: 0.5 },
+    { x: 0.05 * xStretch, y: 1.0 },
+  ];
+}
+
 /** Archimedean spiral, r = k·θ. */
 function spiral(turns: number): Vec2[] {
   const pts: Vec2[] = [];
@@ -68,6 +82,8 @@ export const SIGIL_TEMPLATES: PTemplate[] = [
   tpl('water', sineWave(2.5, 2.8)),
   tpl('earth', triangle()),
   tpl('wind', spiral(2.25)),
+  tpl('lightning', lightningBolt(1)),
+  tpl('lightning', lightningBolt(1.5)),
 ];
 
 /** Reference shapes for UI (sigil unlock moment, tutorials). */
@@ -76,4 +92,5 @@ export const SIGIL_DISPLAY: Record<Element, Vec2[]> = {
   water: sineWave(2.5),
   earth: triangle(),
   wind: spiral(2.25),
+  lightning: lightningBolt(1),
 };

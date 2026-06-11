@@ -66,6 +66,20 @@ export class PreloadScene extends Phaser.Scene {
     g.generateTexture('block', 72, 72);
     g.clear();
 
+    // Lightning trap
+    g.fillStyle(0x1a1600);
+    g.fillCircle(24, 24, 22);
+    g.fillStyle(0xffe033);
+    g.fillCircle(24, 24, 18);
+    g.fillStyle(0x1a1600);
+    g.fillCircle(24, 24, 11);
+    // bolt: top-right → middle-left → middle-right → bottom-left
+    g.fillStyle(0xffee55);
+    g.fillTriangle(27, 6, 16, 22, 24, 22);
+    g.fillTriangle(24, 20, 32, 20, 21, 38);
+    g.generateTexture('trap-lightning', 48, 48);
+    g.clear();
+
     // Ground tile
     g.fillStyle(0x2f5d3a);
     g.fillRect(0, 0, 64, 64);

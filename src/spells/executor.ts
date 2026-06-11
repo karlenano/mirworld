@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BALANCE } from '../config/balance';
 import { Block } from '../entities/Block';
 import type { Enemy } from '../entities/Enemy';
+import { LightningTrap } from '../entities/LightningTrap';
 import type { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import type { SpellSpec } from './types';
@@ -12,15 +13,17 @@ export class SpellExecutor {
     private projectiles: Phaser.Physics.Arcade.Group,
     private enemies: Phaser.Physics.Arcade.Group,
     private blocks: Phaser.Physics.Arcade.StaticGroup,
+    private traps: Phaser.Physics.Arcade.StaticGroup,
     private player: Player,
   ) {}
 
   execute(spec: SpellSpec): void {
     switch (spec.element) {
-      case 'wind':  return this.executeWind(spec);
-      case 'earth': return this.executeEarth(spec);
-      case 'water': return this.executeWater(spec);
-      case 'fire':  return this.executeFire(spec);
+      case 'wind':      return this.executeWind(spec);
+      case 'earth':     return this.executeEarth(spec);
+      case 'water':     return this.executeWater(spec);
+      case 'fire':      return this.executeFire(spec);
+      case 'lightning': return this.executeLightning(spec);
     }
   }
 
@@ -128,6 +131,33 @@ export class SpellExecutor {
       const block = this.blocks.get(bx, by) as Block | null;
       block?.place(bx, by);
     }
+  }
+
+  /**
+   * Lightning — places a trap at the player's current position.
+   * Max 5 traps: if the field is full, the oldest is released first.
+   * Corrupted: trap placed at a random offset (misfire misplacement).
+   */
+  private executeLightning(spec: SpellSpec): void {
+    const L = BALANCE.spells.lightningTrap;
+
+    // Cycle oldest trap when at cap.
+    const active = this.traps.getChildren().filter((c) => c.active) as LightningTrap[];
+    if (active.length >= L.maxTraps) {
+      active.sort((a, b) => a.placedAt - b.placedAt);
+      active[0].release();
+    }
+
+    let tx = this.player.x;
+    let ty = this.player.y;
+    if (spec.corrupted) {
+      const angle = Math.random() * Math.PI * 2;
+      tx += Math.cos(angle) * 80;
+      ty += Math.sin(angle) * 80;
+    }
+
+    const trap = this.traps.get(tx, ty) as LightningTrap | null;
+    trap?.place(tx, ty);
   }
 
   /** Wind — haste buff. Power → speed multiplier, dots → duration. */

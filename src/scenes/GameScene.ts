@@ -11,6 +11,7 @@ import {
 import type { EnemyType } from '../data/enemies';
 import { Block } from '../entities/Block';
 import { Enemy } from '../entities/Enemy';
+import { LightningTrap } from '../entities/LightningTrap';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { CastingController } from '../spells/casting';
@@ -23,6 +24,7 @@ export class GameScene extends Phaser.Scene {
   enemies!: Phaser.Physics.Arcade.Group;
   projectiles!: Phaser.Physics.Arcade.Group;
   blocks!: Phaser.Physics.Arcade.StaticGroup;
+  traps!: Phaser.Physics.Arcade.StaticGroup;
   kills = 0;
 
   private casting!: CastingController;
@@ -54,11 +56,15 @@ export class GameScene extends Phaser.Scene {
       runChildUpdate: true,
     });
     this.blocks = this.physics.add.staticGroup({ classType: Block, maxSize: 12 });
+    this.traps = this.physics.add.staticGroup({
+      classType: LightningTrap,
+      maxSize: BALANCE.spells.lightningTrap.maxTraps,
+    });
 
     // Fresh controller per run — old listeners die with the old instance.
     this.casting = new CastingController();
     this.registry.set(REGISTRY.CASTING, this.casting);
-    this.executor = new SpellExecutor(this.projectiles, this.enemies, this.blocks, this.player);
+    this.executor = new SpellExecutor(this.projectiles, this.enemies, this.blocks, this.traps, this.player);
 
     this.casting.on('state', (state: string) => {
       const slow = state === 'drawing' || state === 'directing';
@@ -75,6 +81,9 @@ export class GameScene extends Phaser.Scene {
     );
     this.physics.add.collider(this.enemies, this.blocks);
     this.physics.add.collider(this.player, this.blocks);
+    this.physics.add.overlap(this.enemies, this.traps, (e, t) =>
+      this.onTrapTrigger(e as Enemy, t as LightningTrap),
+    );
 
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
@@ -150,6 +159,18 @@ export class GameScene extends Phaser.Scene {
       this.casting.cancel(); // big hits break concentration mid-draw
     }
     if (this.player.hp <= 0) this.gameOver();
+  }
+
+  private onTrapTrigger(enemy: Enemy, trap: LightningTrap): void {
+    if (!enemy.active || !trap.active) return;
+    if (!trap.trigger()) return; // already triggered by another enemy this frame
+
+    const T = BALANCE.spells.lightningTrap;
+    const angle = Math.atan2(enemy.y - trap.y, enemy.x - trap.x);
+    const died = enemy.takeDamage(T.damage, angle);
+    this.spawnDamageNumber(enemy.x, enemy.y, T.damage, '#ffee22');
+    if (!died) enemy.applyStun(T.stunMs);
+    if (died) this.kills++;
   }
 
   private onMisfire(): void {

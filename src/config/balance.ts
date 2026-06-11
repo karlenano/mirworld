@@ -33,9 +33,9 @@ export const BALANCE = {
   },
 
   spells: {
-    baseDamage: { fire: 10, water: 6, earth: 16, wind: 8 } as Record<Element, number>,
-    projectileSpeed: { fire: 520, water: 420, earth: 260, wind: 600 } as Record<Element, number>,
-    projectileRange: { fire: 320, water: 380, earth: 240, wind: 420 } as Record<Element, number>,
+    baseDamage: { fire: 10, water: 6, earth: 16, wind: 8, lightning: 18 } as Record<Element, number>,
+    projectileSpeed: { fire: 520, water: 420, earth: 260, wind: 600, lightning: 0 } as Record<Element, number>,
+    projectileRange: { fire: 320, water: 380, earth: 240, wind: 420, lightning: 0 } as Record<Element, number>,
     fireBurn: {
       dps: 8,           // damage per second while burning
       durationMs: 3000,
@@ -59,10 +59,17 @@ export const BALANCE = {
       corruptedSlowMult: 0.6, // backfire: the wind turns against you
       corruptedSlowMs: 2000,
     },
+    lightningTrap: {
+      damage: 18,
+      stunMs: 1200,
+      radius: 20,
+      lifetimeMs: 30000,
+      maxTraps: 5,
+    },
     earthRadiusMult: 1.6, // earth projectiles are big
     fanSpreadDeg: 12, // per extra projectile
     corruptedPowerMult: 0.5,
-    corruptedSelfDamage: { fire: 5, water: 0, earth: 3, wind: 0 } as Record<Element, number>,
+    corruptedSelfDamage: { fire: 5, water: 0, earth: 3, wind: 0, lightning: 0 } as Record<Element, number>,
     castCooldownMs: 250,
   },
 

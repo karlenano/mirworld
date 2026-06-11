@@ -85,6 +85,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0xff6633);
   }
 
+  /** Electric stun: freeze in place + yellow tint, no knockback velocity. */
+  applyStun(durationMs: number): void {
+    this.knockbackUntil = performance.now() + durationMs;
+    // Delay slightly so the damage-flash (60 ms white) clears first.
+    this.scene.time.delayedCall(70, () => { if (this.active) this.setTint(0xffee22); });
+    this.scene.time.delayedCall(durationMs, () => { if (this.active) this.clearTint(); });
+  }
+
   applyKnockback(fromX: number, fromY: number, force: number, stunMs: number): void {
     const angle = Math.atan2(this.y - fromY, this.x - fromX);
     this.setVelocity(Math.cos(angle) * force, Math.sin(angle) * force);

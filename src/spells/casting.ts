@@ -25,7 +25,7 @@ export class CastingController extends Phaser.Events.EventEmitter {
   glyphs: Glyph[] = [];
   pendingSpec: SpellSpec | null = null;
 
-  readonly unlocked = new Set<Element>(['fire', 'water', 'earth', 'wind']);
+  readonly unlocked = new Set<Element>(['fire', 'water', 'earth', 'wind', 'lightning']);
 
   private recognizer = new PDollarRecognizer(SIGIL_TEMPLATES);
   private drawStart = 0;
@@ -151,8 +151,8 @@ export class CastingController extends Phaser.Events.EventEmitter {
       return;
     }
 
-    // Wind is a self-buff; water auto-pushes toward nearest enemies — neither needs aiming.
-    if (result.spec.element === 'wind' || result.spec.element === 'water') {
+    // Wind/water/lightning all resolve immediately with no aiming phase.
+    if (result.spec.element === 'wind' || result.spec.element === 'water' || result.spec.element === 'lightning') {
       this.reset();
       this.state = 'idle';
       this.emit('state', this.state);

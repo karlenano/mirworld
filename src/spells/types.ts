@@ -15,7 +15,7 @@ export interface Stroke {
   length: number; // polyline arc length
 }
 
-export type Element = 'fire' | 'water' | 'earth' | 'wind';
+export type Element = 'fire' | 'water' | 'earth' | 'wind' | 'lightning';
 
 export interface CircleFit {
   cx: number;

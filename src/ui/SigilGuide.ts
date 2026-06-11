@@ -10,15 +10,17 @@ const ELEMENT_COLORS: Record<Element, number> = {
   water: 0x4fc3f7,
   earth: 0xb98a4f,
   wind: 0xc5f5e8,
+  lightning: 0xffee22,
 };
 
-const ALL_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'wind'];
+const ALL_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'wind', 'lightning'];
 
 const ELEMENT_HINTS: Record<Element, string> = {
   fire: 'burn',
   water: 'push back',
   earth: 'blockage',
   wind: 'haste',
+  lightning: 'trap',
 };
 
 /**
